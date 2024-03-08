@@ -1,10 +1,22 @@
 #![allow(unused)]
 #![warn(clippy::pedantic, clippy::nursery, rust_2018_idioms)]
 
+use clap::Parser;
 use std::{
     io::{self, Read, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream},
+    net::{IpAddr, SocketAddr, TcpListener, TcpStream},
 };
+
+#[derive(Parser)]
+struct Cli {
+    /// The IP address to listen on.
+    #[arg(short, long)]
+    ip: String,
+
+    /// The port to listen on.
+    #[arg(short, long)]
+    port: u16,
+}
 
 fn handle_connection(mut stream: TcpStream) {
     println!("Handling connection.");
@@ -43,8 +55,14 @@ fn handle_connection(mut stream: TcpStream) {
     }
 }
 
-pub fn start(port: u16) -> io::Result<()> {
-    let sock_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+fn main() -> io::Result<()> {
+    let args = Cli::parse();
+
+    let ip_addr = args
+        .ip
+        .parse::<IpAddr>()
+        .expect("unable to parse IP passed by command line to a valid IP address");
+    let sock_addr = SocketAddr::new(ip_addr, args.port);
     let listener = TcpListener::bind(sock_addr).expect("unable to bind to socket");
 
     println!("Listening on {sock_addr}");

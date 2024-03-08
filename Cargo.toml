@@ -1,3 +1,3 @@
 [workspace]
-members = ["rftp", "rftp-client", "rftp-server"]
+members = ["rftp-client", "rftp-server"]
 resolver = "2"

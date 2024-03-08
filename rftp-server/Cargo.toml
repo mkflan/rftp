@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.5.2", features = ["derive"] }
+
+[[bin]]
+name = "rftps"
+path = "src/main.rs"

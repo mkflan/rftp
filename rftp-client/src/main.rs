@@ -3,16 +3,33 @@
 
 mod commands;
 
+use clap::Parser;
 use std::{
     io::{self, BufRead, BufReader, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
+    net::{IpAddr, SocketAddr, TcpStream},
 };
 
-use crate::commands::handle_command;
+#[derive(Parser)]
+struct Cli {
+    /// The server's IP address.
+    #[arg(short, long)]
+    ip: String,
 
-pub fn start(port: u16) -> io::Result<()> {
-    let sock_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+    /// The port to connect to.
+    #[arg(short, long)]
+    port: u16,
+}
+
+fn main() -> io::Result<()> {
+    let args = Cli::parse();
+
+    let ip_addr = args
+        .ip
+        .parse::<IpAddr>()
+        .expect("unable to parse IP passed by command line to a valid IP address");
+    let sock_addr = SocketAddr::new(ip_addr, args.port);
     let mut stream = TcpStream::connect(sock_addr).expect("unable to connect to socket");
+
     let mut stream_reader = BufReader::new(stream.try_clone()?);
 
     println!("Connected to {sock_addr}");
@@ -33,7 +50,7 @@ pub fn start(port: u16) -> io::Result<()> {
             let cmd_name = it.next().unwrap();
             let args = it.next().unwrap_or_default();
             let cmd = cmd_name.to_uppercase() + " " + args;
-            handle_command(&cmd, &mut stream, &mut stream_reader);
+            commands::handle_command(&cmd, &mut stream, &mut stream_reader);
         } else {
             println!("Unable to parse input");
             break;
