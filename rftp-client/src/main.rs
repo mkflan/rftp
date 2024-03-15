@@ -2,42 +2,46 @@
 #![warn(clippy::pedantic, clippy::nursery, rust_2018_idioms)]
 
 mod commands;
+mod help;
 
-use clap::Parser;
 use std::{
     io::{self, BufRead, BufReader, Write},
-    net::{IpAddr, SocketAddr, TcpStream},
+    net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream},
 };
 
-#[derive(Parser)]
-struct Cli {
-    /// The server's IP address.
-    #[arg(short, long)]
-    ip: String,
+struct ClientState {
+    /// The control connection stream.
+    ctrl_stream: TcpStream,
+}
 
-    /// The port to connect to.
-    #[arg(short, long)]
-    port: u16,
+impl ClientState {
+    fn new(ctrl_stream: TcpStream) -> Self {
+        Self { ctrl_stream }
+    }
+
+    /// Read from the control stream.
+    fn read_ctrl(&self) -> io::Result<String> {
+        let mut ctrl_read = BufReader::new(&self.ctrl_stream);
+        let mut out = String::new();
+        ctrl_read.read_line(&mut out)?;
+        Ok(out)
+    }
+
+    /// Write to the control stream.
+    fn write_ctrl(&mut self, bytes: &[u8]) -> io::Result<()> {
+        self.ctrl_stream.write_all(bytes)
+    }
 }
 
 fn main() -> io::Result<()> {
-    let args = Cli::parse();
-
-    let ip_addr = args
-        .ip
-        .parse::<IpAddr>()
-        .expect("unable to parse IP passed by command line to a valid IP address");
-    let sock_addr = SocketAddr::new(ip_addr, args.port);
-    let mut stream = TcpStream::connect(sock_addr).expect("unable to connect to socket");
-
-    let mut stream_reader = BufReader::new(stream.try_clone()?);
+    let sock_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 2121);
+    let stream = TcpStream::connect(sock_addr).expect("unable to connect to socket");
+    let mut state = ClientState::new(stream);
 
     println!("Connected to {sock_addr}");
 
     // Output the server's welcome message.
-    let mut welcome_msg = String::new();
-    stream_reader.read_line(&mut welcome_msg)?;
-    println!("{welcome_msg}");
+    println!("{}", state.read_ctrl()?);
 
     loop {
         print!("> ");
@@ -46,13 +50,22 @@ fn main() -> io::Result<()> {
         let mut cmd = String::new();
 
         if io::stdin().read_line(&mut cmd).is_ok() {
-            let mut it = cmd.split_whitespace();
-            let cmd_name = it.next().unwrap();
-            let args = it.next().unwrap_or_default();
-            let cmd = cmd_name.to_uppercase() + " " + args;
-            commands::handle_command(&cmd, &mut stream, &mut stream_reader);
+            /// Send the command to the server via the control connection.
+            state.write_ctrl(cmd.as_bytes())?;
+
+            /// Process the server's response, and determine whether to process a command.
+            let response = state.read_ctrl()?;
+            println!("{response}");
+            let status_code = response[..3].parse::<u32>().unwrap();
+
+            // Skip command handling if command was invalid.
+            if status_code == 500 {
+                continue;
+            }
+
+            commands::handle_command(&cmd, &mut state);
         } else {
-            println!("Unable to parse input");
+            println!("Unable to read input");
             break;
         }
     }

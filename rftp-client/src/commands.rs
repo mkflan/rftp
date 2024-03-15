@@ -1,9 +1,10 @@
+use crate::{help, ClientState};
 use std::{
     io::{BufRead, BufReader, Write},
     net::TcpStream,
-    process::exit,
     str::FromStr,
 };
+use Command::*;
 
 /// All FTP commands specified by RFC 959.
 #[derive(Debug, Clone, Copy)]
@@ -47,15 +48,13 @@ enum Command {
 impl FromStr for Command {
     type Err = ();
 
+    #[rustfmt::skip]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        #[allow(clippy::enum_glob_use)]
-        use Command::*;
-
         match s {
             "USER" => Ok(USER),
             "PASS" => Ok(PASS),
             "ACCT" => Ok(ACCT),
-            "CWD" => Ok(CWD),
+            "CWD"  => Ok(CWD),
             "CDUP" => Ok(CDUP),
             "SMNT" => Ok(SMNT),
             "QUIT" => Ok(QUIT),
@@ -75,9 +74,9 @@ impl FromStr for Command {
             "RNTO" => Ok(RNTO),
             "ABOR" => Ok(ABOR),
             "DELE" => Ok(DELE),
-            "RMD" => Ok(RMD),
-            "MKD" => Ok(MKD),
-            "PWD" => Ok(PWD),
+            "RMD"  => Ok(RMD),
+            "MKD"  => Ok(MKD),
+            "PWD"  => Ok(PWD),
             "LIST" => Ok(LIST),
             "NLST" => Ok(NLST),
             "SITE" => Ok(SITE),
@@ -91,27 +90,47 @@ impl FromStr for Command {
 }
 
 /// Handle a command.
-pub fn handle_command(cmd: &str, stream: &mut TcpStream, stream_reader: &mut BufReader<TcpStream>) {
-    // Send the command to the server.
-    stream.write_all(cmd.as_bytes()).unwrap();
-
-    let mut response = String::new();
-    stream_reader.read_line(&mut response).unwrap();
-    println!("{response}");
-
-    // Check the server's response to see if the command was invalid.
-    if response.starts_with("500") {
-        return;
-    }
-
-    // If we haven't returned, we have a valid command.
-    let mut it = cmd.split_whitespace();
+#[rustfmt::skip]
+pub fn handle_command(cmd_full: &str, state: &mut ClientState) {
+    let mut it = cmd_full.split_whitespace();
     let cmd_name = it.next().unwrap();
     let args = it.next().unwrap_or_default();
     let cmd = Command::from_str(cmd_name).unwrap();
 
     match cmd {
-        Command::QUIT => exit(0),
+        USER => state.write_ctrl(cmd_full.as_bytes()).unwrap(),
+        PASS => state.write_ctrl(cmd_full.as_bytes()).unwrap(),
+        ACCT => todo!(),
+        CWD  => todo!(),
+        CDUP => todo!(),
+        SMNT => todo!(),
+        QUIT => std::process::exit(0),
+        REIN => todo!(),
+        PORT => todo!(),
+        PASV => todo!(),
+        TYPE => todo!(),
+        STRU => todo!(),
+        MODE => todo!(),
+        RETR => todo!(),
+        STOR => todo!(),
+        STOU => todo!(),
+        APPE => todo!(),
+        ALLO => todo!(),
+        REST => todo!(),
+        RNFR => todo!(),
+        RNTO => todo!(),
+        ABOR => todo!(),
+        DELE => todo!(),
+        RMD  => todo!(),
+        MKD  => todo!(),
+        PWD  => todo!(),
+        LIST => todo!(),
+        NLST => todo!(),
+        SITE => todo!(),
+        SYST => todo!(),
+        STAT => todo!(),
+        HELP => help::display_help((!args.is_empty()).then_some(args)),
+        NOOP => todo!(),
         _ => todo!(),
     }
 }

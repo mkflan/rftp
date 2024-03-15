@@ -7,12 +7,12 @@ First, clone the repository onto your system.
 
 To start up the FTP server, run the following command:
 ```
-cargo run --bin rftps -- [FLAGS]
+cargo run --bin rftps
 ```
 
 To start up the FTP client, run the following command:
 ```
-cargo run --bin rftpc -- [FLAGS]
+cargo run --bin rftpc
 ```
 
-If you need more information regarding the flags and arguments either command accepts, pass `--help` at the end of either command.
+By default, the server will bind to `localhost` port `2121`. Similarly, the client will attempt to connect to the same IP and port.
